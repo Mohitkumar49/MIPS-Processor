@@ -1,7 +1,4 @@
-   
-
 def read_asm_file(file_path):
-    """Read MIPS assembly code from a file and return it as a list of strings."""
     with open(file_path, 'r') as file:
         assembly_code = file.readlines()
     # Strip whitespace and newlines from each line

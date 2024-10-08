@@ -1,3 +1,4 @@
+from dis import Instruction
 import utils
 
 def read_Binary_file(file_path):
@@ -27,66 +28,65 @@ def read_Binary_file(file_path):
 
     
         
-
-
+        
 class MIPS_Simulator:
     def __init__(self, binary_code, data_memory):
         # Initialize registers (32 registers)
-        self.registers = {f'$t{i}': 0 for i in range(8)}  # Temporary registers
-        self.registers.update({f'$s{i}': 0 for i in range(8)})  # Saved registers
-        self.registers['$zero'] = 0  # $zero register
+        self.registers = {f'$t{i}': 0 for i in range(8)}  
+        self.registers.update({f'$s{i}': 0 for i in range(8)})  
+        self.registers['$zero'] = 0  
         self.registers['$1'] = 0  # Assume $1 is used for base address
-
-        # Initialize memory
+        self.registers['$ra'] = 0  
+ 
         self.memory = {}
         for var, addr in data_memory.items():
             self.memory[var] = int(addr, 2)  # Convert binary address to integer value
 
-        # Load the binary instructions
         self.binary_code = binary_code
-        # Initialize the program counter
         self.pc = 0
+        self.result = 0  # Store the result of the current instruction
 
     def run(self):
         while self.pc < len(self.binary_code):
-            instruction = self.fetch()  # Fetch instruction
-            self.decode(instruction)     # Decode the instruction
-            self.execute()               # Execute the instruction
-            self.write_back()            # Write back the results
-            self.pc += 1                 # Move to the next instruction
+            instruction = self.fetch() 
+            self.decode(instruction)    
+            self.execute()              
+            self.write_back()           
+            self.pc += 1                # Move to the next instruction
 
     def fetch(self):
-        """
-        Fetches the instruction at the current program counter (PC).
-
-        Returns:
-        - str: The fetched instruction.
-        """
         return self.binary_code[self.pc]
-
+    
+            
+            
     def decode(self, instruction):
-        """
-        Decodes the fetched instruction.
+        binary_instruction = instruction.replace(" ", "").strip()
+        op_code = binary_instruction[:6] 
 
-        Parameters:
-        - instruction (str): The fetched instruction.
-        """
-        parts = instruction.split()
-        op_code = parts[0]
+        if op_code == '000000':  # R-type instructions have opcode '000000'
+            rs = binary_instruction[6:11]
+            rt = binary_instruction[11:16]
+            rd = binary_instruction[16:21]
+            shamt = binary_instruction[21:26]
+            funct = binary_instruction[26:32]
+            self.current_instruction = ('R', (op_code, rs, rt, rd, shamt, funct))
 
-        if op_code in utils.R_type_funct_codes:
-            self.current_instruction = ('R', parts)
         elif op_code in utils.I_type_op_codes:
-            self.current_instruction = ('I', parts)
-        elif op_code in utils.J_type_op_codes:
-            self.current_instruction = ('J', parts)
-        else:
-            raise Exception(f"Unknown instruction: {instruction}")
+            rs = binary_instruction[6:11]
+            rt = binary_instruction[11:16]
+            immediate = binary_instruction[16:32]
+            self.current_instruction = ('I', (op_code, rs, rt, immediate))
 
+        elif op_code in utils.J_type_op_codes:
+            address = binary_instruction[6:32]
+            self.current_instruction = ('J', (op_code, address))
+
+        else:
+            raise Exception(f"Unknown instruction: {binary_instruction}")
+
+            
+        
     def execute(self):
-        """
-        Executes the current instruction based on its type.
-        """
         inst_type, parts = self.current_instruction
 
         if inst_type == 'R':
@@ -97,69 +97,64 @@ class MIPS_Simulator:
             self.execute_J_type(parts)
 
     def write_back(self):
-        """
-        Writes results back to registers or memory if necessary.
-        This can be extended to include actual writing to registers.
-        """
-        pass  # Implement this method based on specific needs
+        inst_type, parts = self.current_instruction
+
+        if inst_type == 'R':
+            rd = parts[3]  # Destination register (rd)
+            self.registers[rd] = self.result
+
+        elif inst_type == 'I':
+            rt = parts[2]  # Target register (rt)
+            self.registers[rt] = self.result
 
     def execute_R_type(self, parts):
-        """
-        Executes R-type instructions.
-
-        Parameters:
-        - parts (list): List containing the parts of the instruction.
-        """
-        funct = parts[0]
-        rd = parts[1]
-        rs = parts[2]
-        rt = parts[3]
+        funct = parts[5]
+        rd = parts[3]
+        rs = parts[1]
+        rt = parts[2]
 
         if funct == 'add':
-            self.registers[rd] = self.registers[rs] + self.registers[rt]
+            self.result = self.registers[rs] + self.registers[rt]
         elif funct == 'sub':
-            self.registers[rd] = self.registers[rs] - self.registers[rt]
+            self.result = self.registers[rs] - self.registers[rt]
         # Add other R-type functions as needed
 
     def execute_I_type(self, parts):
-        """
-        Executes I-type instructions.
-
-        Parameters:
-        - parts (list): List containing the parts of the instruction.
-        """
         op_code = parts[0]
-        rt = parts[1]
+        rs = parts[1]
+        rt = parts[2]
+        
+        immediate = int(parts[3], 2)
+        
 
         if op_code == 'lw':
-            # Load word from memory into register
-            offset, base = parts[2].split('(')  # e.g., 0($1)
-            base = base.strip(')')  # Get register name
-            offset = int(offset)  # Convert offset to integer
+            base_register_value = self.registers[rs]
+            effective_address = base_register_value + immediate
 
-            # Calculate the effective address and load value into the register
-            effective_address = self.registers[base] + offset
-            self.registers[rt] = self.memory.get(format(effective_address, '032b'), 0)
         elif op_code == 'addi':
-            rs = parts[2]
+            rs = parts[1]
             immediate = int(parts[3])
-            self.registers[rt] = self.registers[rs] + immediate
-        # Handle other I-type instructions as needed
+            self.result = self.registers[rs] + immediate
+        
 
     def execute_J_type(self, parts):
-        """
-        Executes J-type instructions.
+        op_code = parts[0]
+        address = int(parts[1], 2)  
 
-        Parameters:
-        - parts (list): List containing the parts of the instruction.
-        """
-        # Handle jump instructions
-        pass  # Implement based on J-type instructions
+        if op_code == 'j':
+            self.pc = address  # Jump to the specified address
+        elif op_code == 'jal':
+            self.registers['$ra'] = self.pc + 1  # Save return address in $ra
+            self.pc = address  # Jump to the specified address
+        elif op_code == 'jr':
+            rs = parts[1]
+            self.pc = self.registers[rs]  # Set the program counter to the address in the register
+
+
+
 
 if __name__ == "__main__":
-    # Read binary code and data memory from the simulation output file
-    binary_code, data_memory = read_Binary_file('outputs/simulation_output.txt')
+    binary_code, data_memory = read_Binary_file('outputs/binary_output.txt')
     
-    # Create an instance of the MIPS simulator
     simulator = MIPS_Simulator(binary_code, data_memory)
     simulator.run()
