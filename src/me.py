@@ -144,6 +144,6 @@ def print_output(binary_code, data_memory):
             f.write(f"{code}\n")
 
 if __name__ == "__main__":
-    assembly_code = read_asm_file('inputs/test_code_1_mips_sim.asm')  
+    assembly_code = read_asm_file('inputs/test_code__mips_sim.asm')  
     binary_code, data_memory = compile(assembly_code)
     print_output(binary_code, data_memory)

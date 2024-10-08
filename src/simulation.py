@@ -1,4 +1,3 @@
-from dis import Instruction
 import utils
 
 def read_Binary_file(file_path):
