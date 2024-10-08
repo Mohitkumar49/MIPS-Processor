@@ -1,3 +1,4 @@
+import os
 import utils
 from read import read_asm_file
 
@@ -106,25 +107,18 @@ def parse_J_type(parts):
 
     return op_code + " " + address
 
+
 def print_output(binary_code, data_memory):
-    print("Data Memory:")
-    for var, addr in data_memory.items():
-        print(f"{var}: {addr}")
+    # Ensure the outputs directory exists
+    os.makedirs('outputs', exist_ok=True)  # Create the directory if it doesn't exist
 
-    print("\nMachine Code:")
-    for idx, code in enumerate(binary_code):
-        print(f"Instruction {idx + 1}: {code}")
-
-    # Save binary code and data memory to a single output file
     with open('outputs/binary_output.txt', 'w') as f:
         f.write("Data Memory:\n")
-        for var, addr in data_memory.items():
-            f.write(f"{var}: {addr}\n")
-        
+        for var, (addr, value) in data_memory.items():
+            f.write(f"{var}: {addr}\n")  # Use the binary address
         f.write("\nMachine Code:\n")
         for code in binary_code:
-            f.write(code + '\n')  # Write each binary instruction on a new line
-
+            f.write(f"{code}\n")
 
 
 if __name__ == "__main__":
