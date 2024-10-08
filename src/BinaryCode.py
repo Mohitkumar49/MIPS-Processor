@@ -116,7 +116,7 @@ def print_output(binary_code, data_memory):
         print(f"Instruction {idx + 1}: {code}")
 
     # Save binary code and data memory to a single output file
-    with open('outputs/simulation_output.txt', 'w') as f:
+    with open('outputs/binary_output.txt', 'w') as f:
         f.write("Data Memory:\n")
         for var, addr in data_memory.items():
             f.write(f"{var}: {addr}\n")
