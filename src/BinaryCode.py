@@ -14,7 +14,7 @@ def compile(assembly):
     
     register_base_address = '00000000000000000000000000000001'  
     
-    # collect labels and their line positions
+
     line_count = 0
     for line in assembly:
         line = line.strip()
@@ -60,7 +60,7 @@ def convert(line, data_memory, label_addresses, current_line_index):
     if parts[0] in utils.R_type_funct_codes:
         instruction = parse_R_type(parts)
     elif parts[0] in utils.I_type_op_codes:
-        instruction = parse_I_type(parts, data_memory, label_addresses, current_line_index)  # Pass label info
+        instruction = parse_I_type(parts, data_memory, label_addresses, current_line_index)  
     elif parts[0] in utils.J_type_op_codes:
         instruction = parse_J_type(parts, label_addresses)
     else:
@@ -133,9 +133,7 @@ def parse_J_type(parts, label_addresses):
     return op_code + " " + address
 
 def print_output(binary_code, data_memory):
-    # Ensure the outputs directory exists
-    os.makedirs('outputs', exist_ok=True)  # Create the directory if it doesn't exist
-
+    os.makedirs('outputs', exist_ok=True) 
     with open('outputs/binary_output_5.txt', 'w') as f:
         f.write("Data Memory:\n")
         for var, (addr, value) in data_memory.items():

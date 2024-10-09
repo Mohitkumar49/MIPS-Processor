@@ -1,4 +1,3 @@
-from dis import Instruction
 import utils
 
 
@@ -108,6 +107,7 @@ class MIPS_Simulator:
         elif inst_type == 'J':
             self.execute_J_type(parts)
 
+    
     def execute_R_type(self, parts):
         _, rs, rt, rd, shamt, funct = parts
         rs_val = self.registers[rs]
@@ -117,17 +117,26 @@ class MIPS_Simulator:
             self.result = rs_val + rt_val
         elif funct == '100010':  # Sub
             self.result = rs_val - rt_val
-        # Include other R-type instructions (AND, OR, SLT)...
+        elif funct == '100100':  # And
+            self.result = rs_val & rt_val
+        elif funct == '100101':  # Or
+            self.result = rs_val | rt_val
+        elif funct == '101010':  # SLT (Set on Less Than)
+            self.result = 1 if rs_val < rt_val else 0
+        else:
+            raise Exception(f"Unknown R-type function: {funct}")
 
     def execute_I_type(self, parts):
         op_code, rs, rt, immediate = parts
         rs_val = self.registers[rs]
         rt_val = self.registers[rt]
         imm_val = int(immediate, 2) if immediate[0] == '0' else -((int(immediate[1:], 2) ^ 0xFFFF) + 1)
-
+            
         if op_code == utils.I_type_op_codes['lw']:
-            effective_address = rs_val + imm_val  # Calculate effective address
-            self.result = self.memory.get(effective_address, 0)  # Load value from memory
+            effective_address = rs_val + imm_val
+            self.result = self.memory.get(effective_address, 0)
+            print(f"Loading from memory at address {effective_address}: {self.result}")
+
         elif op_code == utils.I_type_op_codes['addi']:
             self.result = rs_val + imm_val
         elif op_code == utils.I_type_op_codes['beq']:
@@ -136,7 +145,8 @@ class MIPS_Simulator:
         elif op_code == utils.I_type_op_codes['bne']:
             if rs_val != rt_val:
                 self.pc += imm_val - 1  # Adjust PC to branch to the target address
-
+        elif op_code == utils.I_type_op_codes['slti']:
+            self.result = 1 if rs_val < imm_val else 0 
 
     def execute_J_type(self, parts):
         op_code, address = parts
@@ -159,10 +169,32 @@ class MIPS_Simulator:
             _, _, rt, _ = parts
             self.registers[rt] = self.result
             
+    def write_back(self):
+        inst_type, parts = self.current_instruction
+
+        if inst_type == 'R':
+            _, _, _, rd, _, _ = parts
+            if self.control_signals['RegWrite']:
+                self.registers[rd] = self.result
+                print(f"Write Back R-type: Register {rd} = {self.result}")
+        elif inst_type == 'I':
+            _, _, rt, _ = parts
+            if self.control_signals['RegWrite']:
+                self.registers[rt] = self.result
+                print(f"Write Back I-type: Register {rt} = {self.result}")
+
+            
+    def print_final_register_values(self):
+        print("Final register values:")
+        for reg, value in self.registers.items():
+            print(f"{reg}: {value}", end=", ")
+        print()        
     
     def generate_control_signals(self, op_code, inst_type):
         control = {
             'RegWrite': 0,
+            'RegDst': 0,
+            'MemToReg': 0,
             'MemRead': 0,
             'MemWrite': 0,
             'ALUOp': '00',
@@ -171,18 +203,20 @@ class MIPS_Simulator:
 
         if inst_type == 'R':
             control['RegWrite'] = 1
-            control['ALUOp'] = '10'  # Custom signal for R-type ALU operations
+            control['RegDst'] = 1  
+            control['ALUOp'] = '10'  
 
         elif inst_type == 'I':
-            control['ALUOp'] = '00'  # ALU operation for I-type instructions
-            if op_code in utils.I_type_op_codes.values():
-                if op_code == utils.I_type_op_codes['lw']:
-                    control['MemRead'] = 1
-                    control['RegWrite'] = 1  # Write the loaded value into a register
-                elif op_code == utils.I_type_op_codes['sw']:
-                    control['MemWrite'] = 1
-                elif op_code == utils.I_type_op_codes['addi']:
-                    control['RegWrite'] = 1
+            control['ALUOp'] = '00'  
+            if op_code == utils.I_type_op_codes['lw']:
+                control['MemRead'] = 1
+                control['RegWrite'] = 1  
+                control['MemToReg'] = 1 
+            elif op_code == utils.I_type_op_codes['sw']:
+                control['MemWrite'] = 1
+            elif op_code == utils.I_type_op_codes['addi']:
+                control['RegWrite'] = 1
+                control['RegDst'] = 0  
 
         elif inst_type == 'J':
             control['Jump'] = 1
@@ -190,8 +224,9 @@ class MIPS_Simulator:
         return control
 
 
+
 if __name__ == "__main__":
-    binary_code, original_instructions, data_memory = read_Binary_file('outputs/binary_output_5.txt')
+    binary_code, original_instructions, data_memory = read_Binary_file('outputs/binary_output_1.txt')
     
     simulator = MIPS_Simulator(binary_code,original_instructions, data_memory)
     print("\n")
@@ -199,10 +234,7 @@ if __name__ == "__main__":
     simulator.run()
         
     print("\n")
-    print("Final register values:", ", ".join([f"{reg}: {value}" for reg, value in simulator.registers.items()]))
-    
-    
+    simulator.print_final_register_values()  
 
-    
-    
+
 

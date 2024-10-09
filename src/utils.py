@@ -11,7 +11,8 @@ I_type_op_codes = {
     'sw': '101011',
     'beq': '000100',
     'addi': '001000',
-    'bne': '000101'
+    'bne': '000101',
+    'slti': '001010'
 }
 
 J_type_op_codes = {
