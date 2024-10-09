@@ -11,9 +11,10 @@ def compile(assembly):
     instructions = []
     
     # Initialize register $1 with the base address for the first variable
-    register_base_address = '00000000000000000000000000000001'  # Binary representation of $1
     
-    # First pass: collect labels and their line positions
+    register_base_address = '00000000000000000000000000000001'  
+    
+    # collect labels and their line positions
     line_count = 0
     for line in assembly:
         line = line.strip()
@@ -35,9 +36,9 @@ def compile(assembly):
                 instructions.append(line)
                 line_count += 1
 
-    # Second pass: generate binary code for instructions
+    # generate binary code for instructions
     for line in instructions:
-        instruction = convert(line, data_memory, label_addresses, instructions.index(line))  # Pass label info and line index
+        instruction = convert(line, data_memory, label_addresses, instructions.index(line))  
         if instruction:
             binary_code.append(instruction)
 
@@ -50,8 +51,8 @@ def handle_data_section(line, data_memory):
         value = parts[1].split()[1]  # Get the number after .word
         
         # Assume the address for variables starts from a fixed base
-        address = len(data_memory) * 4  # Assuming each word is 4 bytes (address space increments)
-        data_memory[var_name] = (format(address, '032b'), value)  # Store address in binary and value
+        address = len(data_memory) * 4  
+        data_memory[var_name] = (format(address, '032b'), value)
 
 def convert(line, data_memory, label_addresses, current_line_index):
     parts = [part.strip(',') for part in line.split()]
@@ -135,7 +136,7 @@ def print_output(binary_code, data_memory):
     # Ensure the outputs directory exists
     os.makedirs('outputs', exist_ok=True)  # Create the directory if it doesn't exist
 
-    with open('outputs/binary_output_2.txt', 'w') as f:
+    with open('outputs/binary_output_4.txt', 'w') as f:
         f.write("Data Memory:\n")
         for var, (addr, value) in data_memory.items():
             f.write(f"{var}: {addr}\n")  # Use the binary address

@@ -40,3 +40,4 @@ Register_codes = {
     '$ra': '11111'
 }
 
+binary_to_register = {v: k for k, v in Register_codes.items()}
