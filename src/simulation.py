@@ -189,8 +189,9 @@ if __name__ == "__main__":
     print("\n")
     
     simulator.run()
-
-    
         
     print("\n")
     print("Final register values:", ", ".join([f"{reg}: {value}" for reg, value in simulator.registers.items()]))
+    
+    
+
