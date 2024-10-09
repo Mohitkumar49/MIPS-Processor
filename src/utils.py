@@ -8,12 +8,15 @@ R_type_funct_codes = {
 
 I_type_op_codes = {
     'lw': '100011',
+    'sw': '101011',
     'beq': '000100',
-    'addi': '001000'
+    'addi': '001000',
+    'bne': '000101'
 }
 
 J_type_op_codes = {
-    'j': '000011'
+    'j': '000011',
+    'jal':'000011'
 }
 
 Register_codes = {

@@ -37,7 +37,7 @@ class MIPS_Simulator:
         self.registers['$zero'] = 0
         self.registers['$1'] = 0  # Base address register
         self.registers['$ra'] = 0
-        self.memory = {var: int(addr, 2) for var, addr in data_memory.items()}
+        self.memory = data_memory
         self.binary_code = binary_code
         self.original_instructions = original_instructions 
         self.pc = 0
@@ -73,7 +73,7 @@ class MIPS_Simulator:
             rd = utils.binary_to_register[binary_instruction[16:21]]  
             shamt = binary_instruction[21:26]
             funct = binary_instruction[26:32]
-
+            
             parts = (op_code, rs, rt, rd, shamt, funct)
             self.current_instruction = ('R', parts)
             self.control_signals = self.generate_control_signals(op_code, 'R')
@@ -122,14 +122,21 @@ class MIPS_Simulator:
     def execute_I_type(self, parts):
         op_code, rs, rt, immediate = parts
         rs_val = self.registers[rs]
+        rt_val = self.registers[rt]
         imm_val = int(immediate, 2) if immediate[0] == '0' else -((int(immediate[1:], 2) ^ 0xFFFF) + 1)
 
         if op_code == utils.I_type_op_codes['lw']:
-            effective_address = rs_val + imm_val
-            self.result = self.memory.get(effective_address, 0)
+            effective_address = rs_val + imm_val  # Calculate effective address
+            self.result = self.memory.get(effective_address, 0)  # Load value from memory
         elif op_code == utils.I_type_op_codes['addi']:
             self.result = rs_val + imm_val
-        # Add handling for other I-type instructions like `beq`.
+        elif op_code == utils.I_type_op_codes['beq']:
+            if rs_val == rt_val:
+                self.pc += imm_val - 1  # Adjust PC to branch to the target address
+        elif op_code == utils.I_type_op_codes['bne']:
+            if rs_val != rt_val:
+                self.pc += imm_val - 1  # Adjust PC to branch to the target address
+
 
     def execute_J_type(self, parts):
         op_code, address = parts
@@ -140,6 +147,7 @@ class MIPS_Simulator:
         elif op_code == utils.J_type_op_codes['jal']:
             self.registers['$ra'] = self.pc + 1
             self.pc = target_address - 1
+
 
     def write_back(self):
         inst_type, parts = self.current_instruction
@@ -183,7 +191,7 @@ class MIPS_Simulator:
 
 
 if __name__ == "__main__":
-    binary_code, original_instructions, data_memory = read_Binary_file('outputs/binary_output_1.txt')
+    binary_code, original_instructions, data_memory = read_Binary_file('outputs/binary_output_5.txt')
     
     simulator = MIPS_Simulator(binary_code,original_instructions, data_memory)
     print("\n")
@@ -192,6 +200,9 @@ if __name__ == "__main__":
         
     print("\n")
     print("Final register values:", ", ".join([f"{reg}: {value}" for reg, value in simulator.registers.items()]))
+    
+    
+
     
     
 

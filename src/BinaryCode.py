@@ -136,7 +136,7 @@ def print_output(binary_code, data_memory):
     # Ensure the outputs directory exists
     os.makedirs('outputs', exist_ok=True)  # Create the directory if it doesn't exist
 
-    with open('outputs/binary_output_4.txt', 'w') as f:
+    with open('outputs/binary_output_5.txt', 'w') as f:
         f.write("Data Memory:\n")
         for var, (addr, value) in data_memory.items():
             f.write(f"{var}: {addr}\n")  # Use the binary address
@@ -145,6 +145,6 @@ def print_output(binary_code, data_memory):
             f.write(f"{code}\n")
 
 if __name__ == "__main__":
-    assembly_code = read_asm_file('inputs/test_code_4.asm')  
+    assembly_code = read_asm_file('inputs/test_code_5.asm')  
     binary_code, data_memory = compile(assembly_code)
     print_output(binary_code, data_memory)
