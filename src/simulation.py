@@ -1,13 +1,15 @@
 from dis import Instruction
 import utils
 
+
+
 def read_Binary_file(file_path):
-    # Reads the binary file and splits data memory and code sections.
     with open(file_path, 'r') as f:
         lines = f.readlines()
 
     data_memory = {}
     binary_instructions = []
+    original_instructions = []  
     current_section = None
 
     for line in lines:
@@ -19,13 +21,17 @@ def read_Binary_file(file_path):
         elif current_section == "data" and ':' in line:
             var, addr = line.split(':')
             data_memory[var.strip()] = addr.strip()
-        elif current_section == "code" and line:
-            binary_instructions.append(line)
+        elif current_section == "code":
+            if line:
+                binary_instructions.append(line)
+                original_instructions.append(line)  
 
-    return binary_instructions, data_memory
+    return binary_instructions, original_instructions, data_memory
+
+
 
 class MIPS_Simulator:
-    def __init__(self, binary_code, data_memory):
+    def __init__(self, binary_code,original_instructions, data_memory):
         self.registers = {f'$t{i}': 0 for i in range(8)}
         self.registers.update({f'$s{i}': 0 for i in range(8)})
         self.registers['$zero'] = 0
@@ -33,54 +39,26 @@ class MIPS_Simulator:
         self.registers['$ra'] = 0
         self.memory = {var: int(addr, 2) for var, addr in data_memory.items()}
         self.binary_code = binary_code
+        self.original_instructions = original_instructions 
         self.pc = 0
         self.result = 0
 
+   
     def run(self):
         while self.pc < len(self.binary_code):
             instruction = self.fetch()
             self.decode(instruction)
             self.execute()
             self.write_back()
+        
+            original_instruction = self.original_instructions[self.pc]
+            print(f"Instruction: {self.current_instruction}")
+            print(f"Control Signals: {self.control_signals}")
+
             self.pc += 1
 
     def fetch(self):
         return self.binary_code[self.pc]
-
-    def decode(self, instruction):
-        binary_instruction = instruction.replace(" ", "").strip()
-        op_code = binary_instruction[:6]
-
-        if op_code == '000000':  # R-type instructions
-            rs = utils.get_register_name(binary_instruction[6:11])
-            rt = utils.get_register_name(binary_instruction[11:16])
-            rd = utils.get_register_name(binary_instruction[16:21])
-            shamt = binary_instruction[21:26]
-            funct = binary_instruction[26:32]
-            
-            # Find the instruction name using the funct code
-            instruction_name = [key for key, value in utils.R_type_funct_codes.items() if value == funct]
-            
-            self.current_instruction = ('R', (instruction_name[0], rs, rt, rd, shamt))
-
-        elif op_code in utils.I_type_op_codes.values():
-            rs = utils.get_register_name(binary_instruction[6:11])
-            rt = utils.get_register_name(binary_instruction[11:16])
-            immediate = binary_instruction[16:32]
-            
-            # Find the instruction name using the opcode
-            instruction_name = [key for key, value in utils.I_type_op_codes.items() if value == op_code]
-            
-            self.current_instruction = ('I', (instruction_name[0], rs, rt, immediate))
-
-        elif op_code in utils.J_type_op_codes.values():
-            address = binary_instruction[6:32]
-            instruction_name = [key for key, value in utils.J_type_op_codes.items() if value == op_code]
-            
-            self.current_instruction = ('J', (instruction_name[0], address))
-
-        else:
-            raise Exception(f"Unknown instruction: {binary_instruction}")
 
     def get_register_name(binary_code):
         return [key for key, value in utils.Register_codes.items() if value == binary_code][0]
@@ -96,20 +74,27 @@ class MIPS_Simulator:
             shamt = binary_instruction[21:26]
             funct = binary_instruction[26:32]
 
-            self.current_instruction = ('R', (op_code, rs, rt, rd, shamt, funct))  # Include op_code
+            parts = (op_code, rs, rt, rd, shamt, funct)
+            self.current_instruction = ('R', parts)
+            self.control_signals = self.generate_control_signals(op_code, 'R')
 
         elif op_code in utils.I_type_op_codes.values():
             rs = utils.binary_to_register[binary_instruction[6:11]]  
             rt = utils.binary_to_register[binary_instruction[11:16]]  
             immediate = binary_instruction[16:32]
-
+            
             instruction_name = [key for key, value in utils.I_type_op_codes.items() if value == op_code]
-            self.current_instruction = ('I', (instruction_name[0], rs, rt, immediate))
+            parts = (instruction_name[0], rs, rt, immediate)
+            self.current_instruction = ('I', parts)
+            self.control_signals = self.generate_control_signals(op_code, 'I')
 
         elif op_code in utils.J_type_op_codes.values():
             address = binary_instruction[6:32]
+            
             instruction_name = [key for key, value in utils.J_type_op_codes.items() if value == op_code]
-            self.current_instruction = ('J', (instruction_name[0], address))
+            parts = (instruction_name[0], address)
+            self.current_instruction = ('J', parts)
+            self.control_signals = self.generate_control_signals(op_code, 'J')
         else:
             raise Exception(f"Unknown instruction: {binary_instruction}")
 
@@ -165,10 +150,47 @@ class MIPS_Simulator:
         elif inst_type == 'I':
             _, _, rt, _ = parts
             self.registers[rt] = self.result
+            
+    
+    def generate_control_signals(self, op_code, inst_type):
+        control = {
+            'RegWrite': 0,
+            'MemRead': 0,
+            'MemWrite': 0,
+            'ALUOp': '00',
+            'Jump': 0,
+        }
+
+        if inst_type == 'R':
+            control['RegWrite'] = 1
+            control['ALUOp'] = '10'  # Custom signal for R-type ALU operations
+
+        elif inst_type == 'I':
+            control['ALUOp'] = '00'  # ALU operation for I-type instructions
+            if op_code in utils.I_type_op_codes.values():
+                if op_code == utils.I_type_op_codes['lw']:
+                    control['MemRead'] = 1
+                    control['RegWrite'] = 1  # Write the loaded value into a register
+                elif op_code == utils.I_type_op_codes['sw']:
+                    control['MemWrite'] = 1
+                elif op_code == utils.I_type_op_codes['addi']:
+                    control['RegWrite'] = 1
+
+        elif inst_type == 'J':
+            control['Jump'] = 1
+
+        return control
+
 
 if __name__ == "__main__":
-    binary_code, data_memory = read_Binary_file('outputs/binary_output_1.txt')
+    binary_code, original_instructions, data_memory = read_Binary_file('outputs/binary_output_1.txt')
     
-    simulator = MIPS_Simulator(binary_code, data_memory)
+    simulator = MIPS_Simulator(binary_code,original_instructions, data_memory)
+    print("\n")
     
     simulator.run()
+
+    
+        
+    print("\n")
+    print("Final register values:", ", ".join([f"{reg}: {value}" for reg, value in simulator.registers.items()]))
